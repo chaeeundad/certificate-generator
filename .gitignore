@@ -47,7 +47,7 @@ portable/
 *.hwpx
 *.csv
 !sample_trainees.csv
-!교육이수증_템플릿.hwpx
+교육이수증_템플릿.hwpx
 output/
 이수증_*/
 temp_*/
