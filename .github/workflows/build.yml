@@ -1,0 +1,78 @@
+name: Build Windows Executable
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas openpyxl pyinstaller
+
+    - name: Build executable with PyInstaller
+      run: |
+        pyinstaller --onefile --windowed `
+          --name "교육이수증생성기" `
+          --add-data "README.md;." `
+          --distpath dist `
+          --workpath build `
+          --specpath . `
+          certificate_generator_v2.py
+
+    - name: Create portable package
+      run: |
+        mkdir portable
+        copy dist\교육이수증생성기.exe portable\
+        copy README.md portable\
+        echo @echo off > portable\run.bat
+        echo 교육이수증생성기.exe >> portable\run.bat
+
+        # Create sample CSV
+        echo "이름,생년월일,소속" > portable\sample_trainees.csv
+        echo "홍길동,1990.01.01,개발팀" >> portable\sample_trainees.csv
+        echo "김철수,1985.05.15,기획팀" >> portable\sample_trainees.csv
+        echo "이영희,1992.03.20,디자인팀" >> portable\sample_trainees.csv
+
+    - name: Create ZIP archive
+      run: |
+        Compress-Archive -Path portable\* -DestinationPath CertificateGenerator-Windows-x64.zip
+
+    - name: Upload executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: CertificateGenerator-exe
+        path: dist\교육이수증생성기.exe
+
+    - name: Upload portable package
+      uses: actions/upload-artifact@v3
+      with:
+        name: CertificateGenerator-portable
+        path: CertificateGenerator-Windows-x64.zip
+
+    - name: Create Release (if tagged)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist\교육이수증생성기.exe
+          CertificateGenerator-Windows-x64.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
